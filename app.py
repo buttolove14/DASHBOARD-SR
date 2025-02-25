@@ -28,46 +28,62 @@ def process_order_report():
         col3.metric("Cancelled Orders", cancelled_orders)
         fig = px.line(filtered_df.groupby(filtered_df["purchase-date"].dt.date).size().reset_index(name="Orders"), x="purchase-date", y="Orders", title="📈 Orders Over Time", markers=True)
         st.plotly_chart(fig, use_container_width=True)
-
-def process_return_report():
-    st.markdown("<h2 style='text-align: center; color: #E24A4A;'>🔄 Amazon Return Report Dashboard</h2>", unsafe_allow_html=True)
-    uploaded_file = st.sidebar.file_uploader("Upload Amazon Return Report", type=["csv", "xlsx"])
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-        df.columns = df.columns.str.strip().str.lower()
-        numeric_columns = ["refunded amount", "order amount"]
-        for col in numeric_columns:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        selected_status = st.sidebar.multiselect("Return Request Status", options=df["return request status"].dropna().unique(), default=df["return request status"].dropna().unique())
-        filtered_df = df[df["return request status"].isin(selected_status)]
-        total_returns = filtered_df.shape[0]
-        total_refunded_amount = filtered_df["refunded amount"].sum()
-        col1, col2 = st.columns(2)
-        col1.metric("Total Return Requests", total_returns)
-        col2.metric("Total Refunded Amount", f"Rs.{total_refunded_amount:,.2f}")
+        top_cities = filtered_df["ship-city"].value_counts().head(10).reset_index()
+        top_cities.columns = ["City", "Orders"]
+        fig = px.bar(top_cities, x="City", y="Orders", title="🌆 Top Shipping Cities", color="Orders", text_auto=True)
+        st.plotly_chart(fig, use_container_width=True)
+        repeated_products = filtered_df["product-name"].value_counts().reset_index()
+        repeated_products.columns = ["Product Name", "Purchase Count"]
+        st.markdown("### 🔥 Most Repeatedly Purchased Products")
+        st.dataframe(repeated_products.head(10))
+        top_skus = filtered_df["sku"].value_counts().reset_index()
+        top_skus.columns = ["SKU", "Order Count"]
+        st.markdown("### 🏆 Top Selling SKUs")
+        st.dataframe(top_skus.head(10))
 
 def process_inventory():
-    st.markdown("<h1>📊 Amazon Inventory Dashboard</h1>", unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("📂 Upload Inventory File", type=["xlsx"])
-    if uploaded_file:
-        df = pd.read_excel(uploaded_file)
+    """Handles the UI and processing of inventory reports in Streamlit."""
+    st.markdown("<h1>📊Amazon Inventory Dashboard</h1>", unsafe_allow_html=True)
+    st.write("Upload your Excel file to generate insights on inventory.")
+    uploaded_file = st.file_uploader("📂 Choose an Excel file", type=["xlsx"])
+    if uploaded_file is not None:
+        df = process_inventory_file(uploaded_file)
+        if df is not None:
+            st.markdown("### 📝 Processed Inventory Report")
+            st.dataframe(df, height=600, use_container_width=True)
+            total_inventory = int(df["quantity"].sum())
+            total_value = int((df["price"] * df["quantity"]).sum())
+            avg_price = round(df["price"].mean(), 2)
+            zero_inventory_skus = int((df["quantity"] == 0).sum())
+            available_skus = int((df["quantity"] > 0).sum())
+            col1, col2, col3, col4, col5 = st.columns(5)
+            col1.metric("📦 Total Inventory", f"{total_inventory:,}")
+            col2.metric("💰 Total Value", f"₹{total_value:,}")
+            col3.metric("📊 Avg. Price", f"₹{avg_price:,.2f}")
+            col4.metric("🚫 Zero Stock SKUs", f"{zero_inventory_skus:,}")
+            col5.metric("✅ Available SKUs", f"{available_skus:,}")
+            stock_data = pd.DataFrame({"Stock Status": ["Zero Stock", "With Stock"], "Count": [zero_inventory_skus, available_skus]})
+            if zero_inventory_skus > 0 or available_skus > 0:
+                fig_pie = px.pie(stock_data, names="Stock Status", values="Count", title="📊 Zero Stock vs With Stock Distribution", color="Stock Status", color_discrete_map={"Zero Stock": "red", "With Stock": "green"}, hole=0.3)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            output_file = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Download Processed Inventory", output_file, "processed_inventory.csv", "text/csv")
+
+def process_inventory_file(file):
+    try:
+        df = pd.read_excel(file)
         required_columns = ["sku", "asin", "price", "quantity"]
-        if any(col not in df.columns for col in required_columns):
-            st.error("Missing required columns.")
-            return
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            st.error(f"❌ Missing columns: {', '.join(missing_columns)}")
+            return None
+        df = df[required_columns]
         df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0).astype(int)
         df["price"] = pd.to_numeric(df["price"], errors="coerce").fillna(0)
-        total_inventory, total_value, zero_inventory_skus = df["quantity"].sum(), (df["price"] * df["quantity"]).sum(), (df["quantity"] == 0).sum()
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Inventory", f"{total_inventory:,}")
-        col2.metric("Total Value", f"₹{total_value:,}")
-        col3.metric("Zero Stock SKUs", f"{zero_inventory_skus:,}")
-        stock_data = pd.DataFrame({"Stock Status": ["Zero Stock", "With Stock"], "Count": [zero_inventory_skus, df.shape[0] - zero_inventory_skus]})
-        fig_pie = px.pie(stock_data, names="Stock Status", values="Count", title="📊 Stock Distribution", color_discrete_map={"Zero Stock": "red", "With Stock": "green"}, hole=0.3)
-        st.plotly_chart(fig_pie, use_container_width=True)
-        output_file = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download Processed Inventory", output_file, "processed_inventory.csv", "text/csv")
+        return df
+    except Exception as e:
+        st.error(f"⚠️ Error processing file: {e}")
+        return None
 
 st.sidebar.title("📌 Dashboard Menu")
 menu = st.sidebar.radio("Select a Report:", ["Order Report", "Return Report", "Inventory Report"])
