@@ -187,7 +187,6 @@ def main():
         process_return_report()
 
 # Add footer in the sidebar
-st.sidebar.markdown("---")
 st.sidebar.markdown("🚀 **Work done by Tech Assassins - Seller Rocket**")
 
 if __name__ == "__main__":
