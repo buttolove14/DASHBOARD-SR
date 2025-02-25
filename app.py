@@ -175,5 +175,16 @@ def process_return_report():
             st.markdown("### 🔥 Most Frequently Returned Products")
             st.dataframe(top_returned_products.head(10))
 
+def main():
+    st.sidebar.title("📌 Navigation")
+    page = st.sidebar.radio("Go to", ["Order Report", "Inventory Report", "Return Report"])
+    
+    if page == "Order Report":
+        process_order_report()
+    elif page == "Inventory Report":
+        process_inventory()
+    elif page == "Return Report":
+        process_return_report()
+
 if __name__ == "__main__":
-    process_order_report()
+    main()
