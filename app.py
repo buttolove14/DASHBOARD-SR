@@ -3,6 +3,37 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
+# Set Streamlit Page Configuration
+st.set_page_config(page_title="Amazon Dashboard", page_icon="📊", layout="wide")
+
+# Custom CSS for Aesthetic UI
+st.markdown(
+    """
+    <style>
+        .css-18e3th9 {
+            padding-top: 0rem;
+        }
+        .css-1d391kg {
+            padding-top: 1rem;
+        }
+        .big-font {
+            font-size:20px !important;
+            font-weight: bold;
+            color: #4A90E2;
+        }
+        .stMetric {
+            background-color: #f0f2f6;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
 def load_data(uploaded_file):
     """Loads CSV or Excel file into a Pandas DataFrame."""
     return pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
