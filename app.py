@@ -4,11 +4,6 @@ import plotly.express as px
 from datetime import datetime
 
 def process_order_report():
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-
-def process_order_report():
     # Streamlit App Title
     st.markdown("<h1 style='text-align: center; color: #4A90E2;'>📊 Amazon Order Report Dashboard</h1>", unsafe_allow_html=True)
 
